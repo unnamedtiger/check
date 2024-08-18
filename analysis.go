@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -76,6 +77,27 @@ type Violation struct {
 
 	// starts at StartLine:0 and ends at end of EndLine
 	relevantContent string
+}
+
+// NOTE: this follows https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic
+func (v Violation) MarshalJSON() ([]byte, error) {
+	start := map[string]uint32{}
+	start["line"] = v.StartLine
+	start["character"] = v.StartColumn
+	end := map[string]uint32{}
+	end["line"] = v.EndLine
+	end["character"] = v.EndColumn
+	pos := map[string]interface{}{}
+	pos["start"] = start
+	pos["end"] = end
+	m := map[string]interface{}{}
+	m["range"] = pos
+	if v.ErrorCode != "" {
+		m["code"] = v.ErrorCode
+	}
+	m["source"] = v.PluginName
+	m["message"] = v.Message
+	return json.Marshal(m)
 }
 
 func (v Violation) String() string {
@@ -153,6 +175,18 @@ func (v Violation) StringPretty(color bool) string {
 
 type Report struct {
 	Violations []Violation
+}
+
+func (r Report) MarshalJSON() ([]byte, error) {
+	filePathMap := map[string][]Violation{}
+	for _, vio := range r.Violations {
+		_, ok := filePathMap[vio.FilePath]
+		if !ok {
+			filePathMap[vio.FilePath] = []Violation{}
+		}
+		filePathMap[vio.FilePath] = append(filePathMap[vio.FilePath], vio)
+	}
+	return json.Marshal(filePathMap)
 }
 
 func (r Report) WriteCsv(parentWriter io.Writer) error {

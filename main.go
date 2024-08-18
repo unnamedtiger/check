@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -115,4 +116,8 @@ func main() {
 	}
 	fmt.Printf("\n================================================================================\nAs comma separated values\n")
 	_ = report.WriteCsv(os.Stdout)
+
+	fmt.Printf("\n================================================================================\nAs diagnostic JSON\n")
+	bytes, _ := json.Marshal(report)
+	fmt.Println(string(bytes))
 }

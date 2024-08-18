@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -39,6 +40,17 @@ func TestViolationFormatters(t *testing.T) {
 		if csvExp != buf.String() {
 			fmt.Printf("csvExp: %v\n", csvExp)
 			fmt.Printf("buf.String(): %v\n", buf.String())
+			t.Fail()
+		}
+
+		jsonExp := `{"test/test.go":[{"code":"E001","message":"contains unwanted import: io/ioutil","range":{"end":{"character":12,"line":4},"start":{"character":1,"line":4}},"source":"unwanted-imports"}]}`
+		data, err := json.Marshal(r)
+		if err != nil {
+			t.Fail()
+		}
+		if jsonExp != string(data) {
+			fmt.Printf("jsonExp: %v\n", jsonExp)
+			fmt.Printf("string(data): %v\n", string(data))
 			t.Fail()
 		}
 	}
