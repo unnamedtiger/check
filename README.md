@@ -29,6 +29,12 @@ There are multiple output format available:
 * Use `-o csv` to output CSV format
 * By default the tool pretty-prints its results on the terminal
 
+The `check` tool communicates status with exit codes:
+
+* 2 means that an error happened during the run
+* 1 means that there were violations found and at least one violation wasn't justified
+* 0 means that no violations were found or all found violations were justified
+
 ## Justification
 
 You can justify violations with a comment directly in code.
