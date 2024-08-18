@@ -1,0 +1,10 @@
+{
+    "go.toolsEnvVars": {
+        "CGO_ENABLED": "1",
+        "CC": "zigcc"
+    },
+    "terminal.integrated.env.windows": {
+        "CGO_ENABLED": "1",
+        "CC": "zigcc"
+    }
+}
