@@ -18,3 +18,26 @@ set CGO_ENABLED=1
 set CC="zigcc"
 go build .
 ```
+
+## Usage
+
+Pass in the directory you want to analyze as a parameter.
+
+There are multiple output format available:
+
+* Use `-o json` to output JSON format
+* Use `-o csv` to output CSV format
+* By default the tool pretty-prints its results on the terminal
+
+## Justification
+
+You can justify violations with a comment directly in code.
+Put the justification comment directly above the offending line.
+
+```c
+// JUSTIFY(unwanted-imports): it's okay this time, I swear
+```
+
+Here `unwanted-imports` is the name of the plugin, you can have multiple plugins separated by commas.
+The text after the colon is your comment on why this violation is okay.
+The justification comment may only be one line long.
