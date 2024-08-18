@@ -24,7 +24,7 @@ func run(a *Analysis) error {
 		content = strings.Trim(content, "\"")
 		for _, unwanted := range unwanted_imports {
 			if content == unwanted {
-				a.Reportf(importSpecNode, "contains unwanted import %s", unwanted)
+				a.Reportf(importSpecNode, "contains unwanted import: %s", unwanted)
 				break
 			}
 		}

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -147,6 +149,23 @@ func (v Violation) StringPretty(color bool) string {
 		lineNumber++
 	}
 	return result
+}
+
+type Report struct {
+	Violations []Violation
+}
+
+func (r Report) WriteCsv(parentWriter io.Writer) error {
+	w := csv.NewWriter(parentWriter)
+	for _, vio := range r.Violations {
+		records := []string{vio.PluginName, vio.FilePath, fmt.Sprintf("%d", vio.StartLine), fmt.Sprintf("%d", vio.StartColumn), fmt.Sprintf("%d", vio.EndLine), fmt.Sprintf("%d", vio.EndColumn), vio.ErrorCode, vio.Message}
+		err := w.Write(records)
+		if err != nil {
+			return err
+		}
+	}
+	w.Flush()
+	return nil
 }
 
 func findNamedNodes(n *sitter.Node, name string) []*sitter.Node {

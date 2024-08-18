@@ -39,6 +39,7 @@ func main() {
 		}
 	}
 
+	violations := []Violation{}
 	directories := flag.Args()
 	for _, dir := range directories {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -92,10 +93,7 @@ func main() {
 						os.Exit(1)
 					}
 
-					for _, vio := range a.violations {
-						fmt.Println(vio.StringPretty(true))
-						fmt.Printf("vio: %#v\n", vio)
-					}
+					violations = append(violations, a.violations...)
 				}
 			}
 			return nil
@@ -105,4 +103,16 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	report := Report{Violations: violations}
+	fmt.Printf("\n================================================================================\nRaw Data\n")
+	for _, vio := range report.Violations {
+		fmt.Printf("vio: %#v\n", vio)
+	}
+	fmt.Printf("\n================================================================================\nPretty printed (in color)\n")
+	for _, vio := range report.Violations {
+		fmt.Println(vio.StringPretty(true))
+	}
+	fmt.Printf("\n================================================================================\nAs comma separated values\n")
+	_ = report.WriteCsv(os.Stdout)
 }

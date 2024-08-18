@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 )
@@ -25,6 +26,19 @@ func TestViolationFormatters(t *testing.T) {
 		if exp != v.String() {
 			fmt.Printf("exp: %v\n", exp)
 			fmt.Printf("v.String(): %v\n", v.String())
+			t.Fail()
+		}
+
+		csvExp := "unwanted-imports,test/test.go,4,1,4,12,E001,contains unwanted import: io/ioutil\n"
+		var buf bytes.Buffer
+		r := Report{Violations: []Violation{v}}
+		err := r.WriteCsv(&buf)
+		if err != nil {
+			t.Fail()
+		}
+		if csvExp != buf.String() {
+			fmt.Printf("csvExp: %v\n", csvExp)
+			fmt.Printf("buf.String(): %v\n", buf.String())
 			t.Fail()
 		}
 	}
