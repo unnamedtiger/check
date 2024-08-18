@@ -81,6 +81,9 @@ func main() {
 					a := &Analysis{
 						Content: content,
 						Root:    root,
+
+						pluginName: plugin.Name,
+						filePath:   path,
 					}
 
 					err = plugin.Run(a)
@@ -90,7 +93,8 @@ func main() {
 					}
 
 					for _, vio := range a.violations {
-						fmt.Println(vio)
+						fmt.Println(vio.StringPretty(true))
+						fmt.Printf("vio: %#v\n", vio)
 					}
 				}
 			}
