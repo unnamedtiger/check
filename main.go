@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
@@ -16,6 +17,7 @@ import (
 )
 
 func main() {
+	output := flag.String("o", "terminal", "output format [terminal, csv, json]")
 	version := flag.Bool("V", false, "print version and exit")
 
 	flag.Parse()
@@ -28,6 +30,11 @@ func main() {
 		}
 		fmt.Printf("check %s %s\n", info.Main.Version, info.GoVersion)
 		os.Exit(0)
+	}
+
+	if output != nil && *output != "terminal" && *output != "csv" && *output != "json" {
+		fmt.Printf("invalid output format\n")
+		os.Exit(1)
 	}
 
 	plugins := []*Plugin{UnwantedImportsPlugin}
@@ -106,18 +113,24 @@ func main() {
 	}
 
 	report := Report{Violations: violations}
-	fmt.Printf("\n================================================================================\nRaw Data\n")
-	for _, vio := range report.Violations {
-		fmt.Printf("vio: %#v\n", vio)
+	if output == nil || *output == "terminal" {
+		for _, vio := range report.Violations {
+			fmt.Println(vio.StringPretty(true))
+		}
+	} else if *output == "csv" {
+		var buf bytes.Buffer
+		err := report.WriteCsv(&buf)
+		if err != nil {
+			fmt.Printf("unable to write violations to csv: %s", err)
+			os.Exit(1)
+		}
+		fmt.Print(buf.String())
+	} else if *output == "json" {
+		bytes, err := json.Marshal(report)
+		if err != nil {
+			fmt.Printf("unable to write violations to json: %s", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(bytes))
 	}
-	fmt.Printf("\n================================================================================\nPretty printed (in color)\n")
-	for _, vio := range report.Violations {
-		fmt.Println(vio.StringPretty(true))
-	}
-	fmt.Printf("\n================================================================================\nAs comma separated values\n")
-	_ = report.WriteCsv(os.Stdout)
-
-	fmt.Printf("\n================================================================================\nAs diagnostic JSON\n")
-	bytes, _ := json.Marshal(report)
-	fmt.Println(string(bytes))
 }
