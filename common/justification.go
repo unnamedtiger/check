@@ -30,7 +30,7 @@ func findJustification(n *sitter.Node, content []byte, tag string) *Justificatio
 		text := n.Content(content)
 		startLine := n.StartPoint().Row
 		startColumn := n.StartPoint().Column
-		justifications := extractJustificationsFromComment(text, startLine, startColumn)
+		justifications := ExtractJustifications(text, startLine, startColumn)
 		for _, j := range justifications {
 			if j.Tag == tag {
 				return &j
@@ -40,7 +40,7 @@ func findJustification(n *sitter.Node, content []byte, tag string) *Justificatio
 	return nil
 }
 
-func extractJustificationsFromComment(text string, startLine uint32, startColumn uint32) []Justification {
+func ExtractJustifications(text string, startLine uint32, startColumn uint32) []Justification {
 	justifications := []Justification{}
 
 	for len(text) > 0 {

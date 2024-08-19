@@ -4,6 +4,7 @@
 It is inspired by [Go vet](https://pkg.go.dev/cmd/vet) and similar tools for other programming languages, like [Clang-Tidy](https://clang.llvm.org/extra/clang-tidy/).
 Built as a plugin architecture, it is easy to extend `check` to handle additional rules.
 It is designed to handle many different programming languages, allowing for reuse of plugins over multi-language codebases as long as the individual programming languages aren't too different.
+This allows you to slim down on the additional tools you're running.
 
 ## Design Decisions / Limitations
 
@@ -24,6 +25,12 @@ They are:
 * The plugins export a `common.Plugin` and report violations
 * The main executable `wrapper` collects all plugins with a single method call into an executable, powered by the `common` library
 
+Additionally, the `test` package facilitates tests of the entire system by running the plugins against real code and ensuring
+
+* all violations in the code files part of the testsuite are justified and therefore known
+* all justifications are found
+
+See [Testing](#testing) below for more.
 
 ## Building
 
@@ -63,6 +70,30 @@ Put the justification comment directly above the offending line.
 // JUSTIFY(unwanted-imports): it's okay this time, I swear
 ```
 
-Here `unwanted-imports` is the name of the plugin, you can have multiple plugins separated by commas.
+Here `unwanted-imports` is the tag to look for.
+It is name of the plugin, optionally followed by the error code the plugin produced, e.g. `unwanted-imports/E001`.
+A single justification can handle multiple tags separated by commas.
 The text after the colon is your comment on why this violation is okay.
 The justification comment may only be one line long.
+
+## Testing
+
+There are **unit tests** in the `common` library; they are handled like normal in Go.
+
+All test files for the **system tests** go into `test/data`.
+The test files are passed to all plugins and resulting violations are collected.
+Every violation has to be justified, allowing for self-documenting test cases.
+Justification messages have to be unique over all test cases.
+Unjustified violations are reported as errors as well as superflous justifications.
+
+All tests (unit tests in the `common` library and system tests in `test`) are run like this together:
+
+```sh
+go test ./common ./test
+```
+
+To include coverage, use this call:
+
+```sh
+go test -v -coverpkg=./... -coverprofile=cov.out ./common ./test && go tool cover -html=cov.out -o=cov.html
+```

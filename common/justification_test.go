@@ -90,72 +90,72 @@ func TestFindJustification(t *testing.T) {
 
 func TestExtractJustification(t *testing.T) {
 	{
-		j := extractJustificationsFromComment("", 0, 0)
+		j := ExtractJustifications("", 0, 0)
 		if len(j) != 0 {
 			t.Fail()
 		}
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(", 0, 0)
+		j := ExtractJustifications("JUSTIFY(", 0, 0)
 		if len(j) != 0 {
 			t.Fail()
 		}
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY()", 0, 0)
+		j := ExtractJustifications("JUSTIFY()", 0, 0)
 		if len(j) != 0 {
 			t.Fail()
 		}
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo", 0, 0)
 		if len(j) != 0 {
 			t.Fail()
 		}
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo)", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo)", 0, 0)
 		if len(j) != 0 {
 			t.Fail()
 		}
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo) message", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo) message", 0, 0)
 		if len(j) != 1 {
 			t.Fail()
 		}
 		assertJustification(t, Justification{0, 0, 0, 20, "foo", "message"}, j[0])
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo): message", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo): message", 0, 0)
 		if len(j) != 1 {
 			t.Fail()
 		}
 		assertJustification(t, Justification{0, 0, 0, 21, "foo", "message"}, j[0])
 	}
 	{
-		j := extractJustificationsFromComment("// JUSTIFY(foo): message", 0, 0)
+		j := ExtractJustifications("// JUSTIFY(foo): message", 0, 0)
 		if len(j) != 1 {
 			t.Fail()
 		}
 		assertJustification(t, Justification{0, 3, 0, 24, "foo", "message"}, j[0])
 	}
 	{
-		j := extractJustificationsFromComment("/* JUSTIFY(foo): message */", 0, 0)
+		j := ExtractJustifications("/* JUSTIFY(foo): message */", 0, 0)
 		if len(j) != 1 {
 			t.Fail()
 		}
 		assertJustification(t, Justification{0, 3, 0, 27, "foo", "message */"}, j[0])
 	}
 	{
-		j := extractJustificationsFromComment("/*\n * This is my function that does things\n *\n * JUSTIFY(foo): message\n */", 0, 0)
+		j := ExtractJustifications("/*\n * This is my function that does things\n *\n * JUSTIFY(foo): message\n */", 0, 0)
 		if len(j) != 1 {
 			t.Fail()
 		}
 		assertJustification(t, Justification{3, 3, 3, 24, "foo", "message"}, j[0])
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo,bar): message", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo,bar): message", 0, 0)
 		if len(j) != 2 {
 			t.Fail()
 		}
@@ -163,7 +163,7 @@ func TestExtractJustification(t *testing.T) {
 		assertJustification(t, Justification{0, 0, 0, 25, "bar", "message"}, j[1])
 	}
 	{
-		j := extractJustificationsFromComment("JUSTIFY(foo, bar): message", 0, 0)
+		j := ExtractJustifications("JUSTIFY(foo, bar): message", 0, 0)
 		if len(j) != 2 {
 			t.Fail()
 		}

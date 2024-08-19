@@ -51,38 +51,10 @@ func Main(plugins ...*Plugin) {
 	}
 
 	// looping over all directories and passing the files to the plugins
-	violations := []Violation{}
-	for _, dir := range directories {
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "unable to walk directory %s: %s\n", path, err)
-				os.Exit(2)
-			}
-
-			if d.IsDir() {
-				return nil
-			}
-
-			name := d.Name()
-			ext := filepath.Ext(name)
-			ext = strings.TrimPrefix(ext, ".")
-
-			for _, plugin := range plugins {
-				if plugin.handlesExtension(ext) {
-					vios, err := makePluginHandleFile(plugin, path, ext)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "%s\n", err)
-						os.Exit(2)
-					}
-					violations = append(violations, vios...)
-				}
-			}
-			return nil
-		})
-
-		if err != nil {
-			os.Exit(2)
-		}
+	violations, err := RunChecksForDirectories(plugins, directories)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
 	}
 
 	// building up the report and outputting it
@@ -115,6 +87,40 @@ func Main(plugins ...*Plugin) {
 		}
 	}
 	os.Exit(0)
+}
+
+func RunChecksForDirectories(plugins []*Plugin, directories []string) ([]Violation, error) {
+	violations := []Violation{}
+	for _, dir := range directories {
+		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("unable to walk directory %s: %s", path, err)
+			}
+			if d.IsDir() {
+				return nil
+			}
+
+			name := d.Name()
+			ext := filepath.Ext(name)
+			ext = strings.TrimPrefix(ext, ".")
+			for _, plugin := range plugins {
+				if plugin.handlesExtension(ext) {
+					vios, err := makePluginHandleFile(plugin, path, ext)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "%s\n", err)
+						os.Exit(2)
+					}
+					violations = append(violations, vios...)
+				}
+			}
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+	return violations, nil
 }
 
 func parseFileContent(content []byte, ext string) (*sitter.Node, error) {
