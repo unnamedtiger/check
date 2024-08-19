@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func checkForJustifications(t *testing.T, code string, exp string) {
 	if err != nil {
 		t.Fail()
 	}
-	nodes := findNamedNodes(tree.RootNode(), "function_declaration")
+	nodes := FindNamedNodes(tree.RootNode(), "function_declaration")
 	if len(nodes) != 1 {
 		t.Fail()
 	}

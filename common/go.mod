@@ -1,4 +1,4 @@
-module github.com/unnamedtiger/check
+module github.com/unnamedtiger/check/common
 
 go 1.22.4
 

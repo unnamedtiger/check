@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"encoding/csv"
@@ -17,7 +17,7 @@ type Plugin struct {
 	Run        func(analysis *Analysis) error
 }
 
-func (p *Plugin) handlesExt(ext string) bool {
+func (p *Plugin) HandlesExtension(ext string) bool {
 	for _, e := range p.Extensions {
 		if e == ext {
 			return true
@@ -30,9 +30,9 @@ type Analysis struct {
 	Content []byte
 	Root    *sitter.Node
 
-	pluginName string
-	filePath   string
-	violations []Violation
+	PluginName string
+	FilePath   string
+	Violations []Violation
 }
 
 func (a *Analysis) Reportf(n *sitter.Node, format string, args ...any) {
@@ -43,12 +43,12 @@ func (a *Analysis) Reportf(n *sitter.Node, format string, args ...any) {
 	}
 	code := a.Content[startByte:endByte]
 
-	just := findJustification(n, a.Content, a.pluginName)
+	just := findJustification(n, a.Content, a.PluginName)
 
 	vio := Violation{
-		PluginName: a.pluginName,
+		PluginName: a.PluginName,
 
-		FilePath: a.filePath,
+		FilePath: a.FilePath,
 
 		StartLine:   n.StartPoint().Row,
 		StartColumn: n.StartPoint().Column,
@@ -62,7 +62,7 @@ func (a *Analysis) Reportf(n *sitter.Node, format string, args ...any) {
 
 		relevantContent: string(code),
 	}
-	a.violations = append(a.violations, vio)
+	a.Violations = append(a.Violations, vio)
 }
 
 type Violation struct {
@@ -233,14 +233,14 @@ func (r Report) WriteCsv(parentWriter io.Writer) error {
 	return nil
 }
 
-func findNamedNodes(n *sitter.Node, name string) []*sitter.Node {
+func FindNamedNodes(n *sitter.Node, name string) []*sitter.Node {
 	results := []*sitter.Node{}
 	for i := uint32(0); i < n.NamedChildCount(); i++ {
 		child := n.NamedChild(int(i))
 		if child.Type() == name {
 			results = append(results, child)
 		}
-		results = append(results, findNamedNodes(n.NamedChild(int(i)), name)...)
+		results = append(results, FindNamedNodes(n.NamedChild(int(i)), name)...)
 	}
 	return results
 }

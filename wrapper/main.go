@@ -14,6 +14,8 @@ import (
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
+	"github.com/unnamedtiger/check/common"
+	"github.com/unnamedtiger/check/plugins/unwanted_imports"
 )
 
 func main() {
@@ -37,7 +39,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	plugins := []*Plugin{UnwantedImportsPlugin}
+	plugins := []*common.Plugin{unwanted_imports.Plugin}
 	for _, plugin := range plugins {
 		for _, ext := range plugin.Extensions {
 			if ext != "go" {
@@ -47,7 +49,7 @@ func main() {
 		}
 	}
 
-	violations := []Violation{}
+	violations := []common.Violation{}
 	directories := flag.Args()
 	for _, dir := range directories {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -65,7 +67,7 @@ func main() {
 			ext = strings.TrimPrefix(ext, ".")
 
 			for _, plugin := range plugins {
-				if plugin.handlesExt(ext) {
+				if plugin.HandlesExtension(ext) {
 					content, err := os.ReadFile(path)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "unable to read file %s: %s\n", path, err)
@@ -85,12 +87,12 @@ func main() {
 					}
 					root := tree.RootNode()
 
-					a := &Analysis{
+					a := &common.Analysis{
 						Content: content,
 						Root:    root,
 
-						pluginName: plugin.Name,
-						filePath:   path,
+						PluginName: plugin.Name,
+						FilePath:   path,
 					}
 
 					err = plugin.Run(a)
@@ -99,7 +101,7 @@ func main() {
 						os.Exit(2)
 					}
 
-					violations = append(violations, a.violations...)
+					violations = append(violations, a.Violations...)
 				}
 			}
 			return nil
@@ -110,7 +112,7 @@ func main() {
 		}
 	}
 
-	report := Report{Violations: violations}
+	report := common.Report{Violations: violations}
 	if output == nil || *output == "terminal" {
 		for _, vio := range report.Violations {
 			fmt.Println(vio.StringPretty(true))
