@@ -5,6 +5,7 @@ type Plugin struct {
 	Doc        string
 	Extensions []string
 	Run        func(analysis *Analysis) error
+	Finalize   func(analysis *Analysis) error
 }
 
 func (p *Plugin) handlesExtension(ext string) bool {

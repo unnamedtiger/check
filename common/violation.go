@@ -30,6 +30,23 @@ type Violation struct {
 }
 
 func newViolation(pluginName string, filePath string, n *sitter.Node, content []byte, errorCode string, message string) Violation {
+	if n == nil {
+		v := Violation{
+			PluginName:               pluginName,
+			FilePath:                 filePath,
+			StartLine:                0,
+			StartColumn:              0,
+			EndLine:                  0,
+			EndColumn:                0,
+			ErrorCode:                errorCode,
+			Message:                  message,
+			Justification:            nil,
+			RelevantContentStartLine: 0,
+			RelContent:               []string{},
+		}
+		return v
+	}
+
 	tag := pluginName
 	if errorCode != "" {
 		tag += "/" + errorCode
@@ -167,9 +184,9 @@ func (v Violation) StringPretty(color bool) string {
 		escCyan = "\x1b[96m"
 	}
 
-	t := v.PluginName
+	tag := v.PluginName
 	if v.ErrorCode != "" {
-		t += "/" + v.ErrorCode
+		tag += "/" + v.ErrorCode
 	}
 	result := escBold
 	if v.Justification == nil {
@@ -177,62 +194,71 @@ func (v Violation) StringPretty(color bool) string {
 	} else {
 		result += escCyan + "justified"
 	}
-	result += fmt.Sprintf("(%s)"+escReset+escBold+": %s"+escReset+"\n", t, v.Message)
-	result += fmt.Sprintf(escBlue+"  -->"+escReset+" %s:%d:%d\n", v.FilePath, v.StartLine+1, v.StartColumn+1)
-	lineNumberWidth := len(fmt.Sprintf("%d", v.EndLine+1))
-	if lineNumberWidth < 2 {
-		lineNumberWidth = 2
-	}
-	result += fmt.Sprintf(escBlue+"%*s |"+escReset+"\n", lineNumberWidth, "")
-
-	lineNumber := v.RelevantContentStartLine + 1
-	for _, line := range v.RelContent {
-		if v.StartLine+1 <= lineNumber && lineNumber <= v.EndLine+1 && len(line) > 0 {
-			startChar := uint32(0)
-			endChar := uint32(len(line) - 1)
-			if v.StartLine+1 == lineNumber {
-				startChar = v.StartColumn
-			}
-			if v.EndLine+1 == lineNumber {
-				endChar = v.EndColumn
-			}
-
-			l := fmt.Sprintf(escBlue+"%*d | "+escReset+"", lineNumberWidth, lineNumber)
-			l += line[0:startChar]
-			if v.Justification == nil {
-				l += escRed
-			} else {
-				l += escCyan
-			}
-			l += line[startChar:endChar]
-			l += escReset
-			l += line[endChar:]
-			result += l
-
-			underline := strings.Repeat("~", int(endChar-startChar))
-			if v.StartLine+1 == lineNumber && len(underline) > 0 {
-				underline = "^" + underline[1:]
-			}
-			l = fmt.Sprintf(escBlue+"%*s | "+escReset, lineNumberWidth, "")
-			for i := 0; i < int(startChar); i++ {
-				c := line[i]
-				if c == '\t' {
-					l += "\t"
-				} else {
-					l += " "
-				}
-			}
-			if v.Justification == nil {
-				l += escRed
-			} else {
-				l += escCyan
-			}
-			l += underline + escReset + "\n"
-			result += l
+	result += fmt.Sprintf("(%s)"+escReset+escBold+": %s"+escReset+"\n", tag, v.Message)
+	if v.FilePath != "" {
+		if v.StartLine == 0 && v.StartColumn == 0 && v.EndLine == 0 && v.EndColumn == 0 {
+			result += fmt.Sprintf(escBlue+"  -->"+escReset+" %s\n", v.FilePath)
 		} else {
-			result += fmt.Sprintf(escBlue+"%*d | "+escReset+"%s", lineNumberWidth, lineNumber, line)
+			result += fmt.Sprintf(escBlue+"  -->"+escReset+" %s:%d:%d\n", v.FilePath, v.StartLine+1, v.StartColumn+1)
 		}
-		lineNumber++
+	}
+	lineNumberWidth := 0
+	if len(v.RelContent) > 0 {
+		lineNumberWidth = len(fmt.Sprintf("%d", v.EndLine+1))
+		if lineNumberWidth < 2 {
+			lineNumberWidth = 2
+		}
+		result += fmt.Sprintf(escBlue+"%*s |"+escReset+"\n", lineNumberWidth, "")
+
+		lineNumber := v.RelevantContentStartLine + 1
+		for _, line := range v.RelContent {
+			if v.StartLine+1 <= lineNumber && lineNumber <= v.EndLine+1 && len(line) > 0 {
+				startChar := uint32(0)
+				endChar := uint32(len(line) - 1)
+				if v.StartLine+1 == lineNumber {
+					startChar = v.StartColumn
+				}
+				if v.EndLine+1 == lineNumber {
+					endChar = v.EndColumn
+				}
+
+				l := fmt.Sprintf(escBlue+"%*d | "+escReset+"", lineNumberWidth, lineNumber)
+				l += line[0:startChar]
+				if v.Justification == nil {
+					l += escRed
+				} else {
+					l += escCyan
+				}
+				l += line[startChar:endChar]
+				l += escReset
+				l += line[endChar:]
+				result += l
+
+				underline := strings.Repeat("~", int(endChar-startChar))
+				if v.StartLine+1 == lineNumber && len(underline) > 0 {
+					underline = "^" + underline[1:]
+				}
+				l = fmt.Sprintf(escBlue+"%*s | "+escReset, lineNumberWidth, "")
+				for i := 0; i < int(startChar); i++ {
+					c := line[i]
+					if c == '\t' {
+						l += "\t"
+					} else {
+						l += " "
+					}
+				}
+				if v.Justification == nil {
+					l += escRed
+				} else {
+					l += escCyan
+				}
+				l += underline + escReset + "\n"
+				result += l
+			} else {
+				result += fmt.Sprintf(escBlue+"%*d | "+escReset+"%s", lineNumberWidth, lineNumber, line)
+			}
+			lineNumber++
+		}
 	}
 	if v.Justification != nil {
 		result += fmt.Sprintf(escBlue+"%*s = "+escReset+escBold+"justification:"+escReset+" %s\n", lineNumberWidth, "", v.Justification.Message)

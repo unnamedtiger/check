@@ -104,7 +104,7 @@ func RunChecksForDirectories(plugins []*Plugin, directories []string) ([]Violati
 			ext := filepath.Ext(name)
 			ext = strings.TrimPrefix(ext, ".")
 			for _, plugin := range plugins {
-				if plugin.handlesExtension(ext) {
+				if plugin.handlesExtension(ext) && plugin.Run != nil {
 					vios, err := makePluginHandleFile(plugin, path, ext)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -118,6 +118,20 @@ func RunChecksForDirectories(plugins []*Plugin, directories []string) ([]Violati
 
 		if err != nil {
 			return nil, err
+		}
+	}
+
+	for _, plugin := range plugins {
+		if plugin.Finalize != nil {
+			a := &Analysis{
+				pluginName: plugin.Name,
+			}
+
+			err := plugin.Finalize(a)
+			if err != nil {
+				return nil, fmt.Errorf("[%s] unable to finalize: %s", plugin.Name, err)
+			}
+			violations = append(violations, a.violations...)
 		}
 	}
 	return violations, nil
@@ -149,11 +163,12 @@ func makePluginHandleFile(plugin *Plugin, path string, ext string) ([]Violation,
 	}
 
 	a := &Analysis{
-		Content: content,
-		Root:    root,
+		Content:   content,
+		Root:      root,
+		FilePath:  path,
+		Extension: ext,
 
 		pluginName: plugin.Name,
-		filePath:   path,
 	}
 
 	err = plugin.Run(a)
