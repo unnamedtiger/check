@@ -5,6 +5,25 @@ It is inspired by [Go vet](https://pkg.go.dev/cmd/vet) and similar tools for oth
 Built as a plugin architecture, it is easy to extend `check` to handle additional rules.
 It is designed to handle many different programming languages, allowing for reuse of plugins over multi-language codebases as long as the individual programming languages aren't too different.
 
+## Design Decisions / Limitations
+
+There are two major limitations that a `check` plugin has to contend with.
+They are:
+
+* A `check` plugin is passed a representation of the abstract syntax tree of code.
+    It's not possible to build a plugin that needs more context, like an already run preprocessor or code generator, information about struct layouts, or similar.
+    This means that several subgroups of static analysis tasks can't be implemented with `check`.
+* A `check` plugin gets every code file individually in an unspecified order.
+    While a plugin can store information gathered from one file, it won't be able to reliably evaluate a holistic view of the entire codebase until the end of the run.
+
+## Architecture
+
+`check` follows a three-part plugin architecture.
+
+* The library `common` does the heavy lifting and provides types and functions for the other parts to use
+* The plugins export a `common.Plugin` and report violations
+* The main executable `wrapper` collects all plugins with a single method call into an executable, powered by the `common` library
+
 
 ## Building
 

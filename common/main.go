@@ -67,7 +67,7 @@ func Main(plugins ...*Plugin) {
 			ext = strings.TrimPrefix(ext, ".")
 
 			for _, plugin := range plugins {
-				if plugin.HandlesExtension(ext) {
+				if plugin.handlesExtension(ext) {
 					vios, err := makePluginHandleFile(plugin, path, ext)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%s\n", err)
@@ -85,9 +85,9 @@ func Main(plugins ...*Plugin) {
 	}
 
 	// building up the report and outputting it
-	report := Report{Violations: violations}
+	report := Report{violations: violations}
 	if output == nil || *output == "terminal" {
-		for _, vio := range report.Violations {
+		for _, vio := range report.violations {
 			fmt.Println(vio.StringPretty(true))
 		}
 	} else if *output == "csv" {
@@ -108,7 +108,7 @@ func Main(plugins ...*Plugin) {
 	}
 
 	// exit with correct code
-	for _, vio := range report.Violations {
+	for _, vio := range report.violations {
 		if vio.Justification == "" {
 			os.Exit(1)
 		}
@@ -137,13 +137,13 @@ func makePluginHandleFile(plugin *Plugin, path string, ext string) ([]Violation,
 		Content: content,
 		Root:    root,
 
-		PluginName: plugin.Name,
-		FilePath:   path,
+		pluginName: plugin.Name,
+		filePath:   path,
 	}
 
 	err = plugin.Run(a)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] unable to check file %s: %s\n", plugin.Name, path, err)
 	}
-	return a.Violations, nil
+	return a.violations, nil
 }
