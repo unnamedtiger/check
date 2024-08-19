@@ -67,7 +67,7 @@ func TestViolationFormatters(t *testing.T) {
 			ErrorCode: "E001",
 			Message:   "contains unwanted import: io/ioutil",
 
-			Justification: "it's okay this time, I swear",
+			Justification: &Justification{3, 7, 3, 67, "unwanted-imports/E001", "it's okay this time, I swear"},
 
 			relevantContent: "    \"io/ioutil\"",
 		}

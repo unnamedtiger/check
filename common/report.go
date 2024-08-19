@@ -26,7 +26,11 @@ func (r Report) MarshalJSON() ([]byte, error) {
 func (r Report) WriteCsv(parentWriter io.Writer) error {
 	w := csv.NewWriter(parentWriter)
 	for _, vio := range r.violations {
-		records := []string{vio.PluginName, vio.FilePath, fmt.Sprintf("%d", vio.StartLine), fmt.Sprintf("%d", vio.StartColumn), fmt.Sprintf("%d", vio.EndLine), fmt.Sprintf("%d", vio.EndColumn), vio.ErrorCode, vio.Message, vio.Justification}
+		just := ""
+		if vio.Justification != nil {
+			just = vio.Justification.Message
+		}
+		records := []string{vio.PluginName, vio.FilePath, fmt.Sprintf("%d", vio.StartLine), fmt.Sprintf("%d", vio.StartColumn), fmt.Sprintf("%d", vio.EndLine), fmt.Sprintf("%d", vio.EndColumn), vio.ErrorCode, vio.Message, just}
 		err := w.Write(records)
 		if err != nil {
 			return err

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -109,29 +110,37 @@ func Main(plugins ...*Plugin) {
 
 	// exit with correct code
 	for _, vio := range report.violations {
-		if vio.Justification == "" {
+		if vio.Justification == nil {
 			os.Exit(1)
 		}
 	}
 	os.Exit(0)
 }
 
-func makePluginHandleFile(plugin *Plugin, path string, ext string) ([]Violation, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read file %s: %s\n", path, err)
-	}
+func parseFileContent(content []byte, ext string) (*sitter.Node, error) {
 	parser := sitter.NewParser()
 	if ext == "go" {
 		parser.SetLanguage(golang.GetLanguage())
 	} else {
-		return nil, fmt.Errorf("unknown extension: %s\n", ext)
+		return nil, errors.New("unknown extension")
 	}
 	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse file %s: %s\n", path, err)
+		return nil, err
 	}
 	root := tree.RootNode()
+	return root, nil
+}
+
+func makePluginHandleFile(plugin *Plugin, path string, ext string) ([]Violation, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read file %s: %s", path, err)
+	}
+	root, err := parseFileContent(content, ext)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse file %s: %s", path, err)
+	}
 
 	a := &Analysis{
 		Content: content,
@@ -143,7 +152,7 @@ func makePluginHandleFile(plugin *Plugin, path string, ext string) ([]Violation,
 
 	err = plugin.Run(a)
 	if err != nil {
-		return nil, fmt.Errorf("[%s] unable to check file %s: %s\n", plugin.Name, path, err)
+		return nil, fmt.Errorf("[%s] unable to check file %s: %s", plugin.Name, path, err)
 	}
 	return a.violations, nil
 }

@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	sitter "github.com/smacker/go-tree-sitter"
 )
 
 type Violation struct {
 	PluginName string
-
-	FilePath string
+	FilePath   string
 
 	// all these are 0-indexed
 	StartLine   uint32
@@ -20,10 +21,39 @@ type Violation struct {
 	ErrorCode string
 	Message   string
 
-	Justification string
+	Justification *Justification
 
 	// starts at StartLine:0 and ends at end of EndLine
 	relevantContent string
+}
+
+func newViolation(pluginName string, filePath string, n *sitter.Node, content []byte, errorCode string, message string) Violation {
+	tag := pluginName
+	if errorCode != "" {
+		tag += "/" + errorCode
+	}
+	just := findJustification(n, content, tag)
+
+	startByte := n.StartByte() - n.StartPoint().Column
+	endByte := n.EndByte()
+	for len(content) < int(endByte) && content[endByte] != '\n' {
+		endByte++
+	}
+	code := content[startByte:endByte]
+
+	v := Violation{
+		PluginName:      pluginName,
+		FilePath:        filePath,
+		StartLine:       n.StartPoint().Row,
+		StartColumn:     n.StartPoint().Column,
+		EndLine:         n.EndPoint().Row,
+		EndColumn:       n.EndPoint().Column,
+		ErrorCode:       errorCode,
+		Message:         message,
+		Justification:   just,
+		relevantContent: string(code),
+	}
+	return v
 }
 
 // NOTE: this follows https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic
@@ -44,7 +74,7 @@ func (v Violation) MarshalJSON() ([]byte, error) {
 	}
 	m["source"] = v.PluginName
 	m["message"] = v.Message
-	if v.Justification != "" {
+	if v.Justification != nil {
 		m["severity"] = 3 // informational
 	} else {
 		m["severity"] = 1 // error
@@ -75,7 +105,7 @@ func (v Violation) StringPretty(color bool) string {
 		t += "/" + v.ErrorCode
 	}
 	result := escBold
-	if v.Justification == "" {
+	if v.Justification == nil {
 		result += escRed + "violation"
 	} else {
 		result += escCyan + "justified"
@@ -103,7 +133,7 @@ func (v Violation) StringPretty(color bool) string {
 
 			l := fmt.Sprintf(escBlue+"%*d | "+escReset+"", lineNumberWidth, lineNumber)
 			l += line[0:startChar]
-			if v.Justification == "" {
+			if v.Justification == nil {
 				l += escRed
 			} else {
 				l += escCyan
@@ -127,7 +157,7 @@ func (v Violation) StringPretty(color bool) string {
 					l += " "
 				}
 			}
-			if v.Justification == "" {
+			if v.Justification == nil {
 				l += escRed
 			} else {
 				l += escCyan
@@ -139,8 +169,8 @@ func (v Violation) StringPretty(color bool) string {
 		}
 		lineNumber++
 	}
-	if v.Justification != "" {
-		result += fmt.Sprintf(escBlue+"%*s = "+escReset+escBold+"justification:"+escReset+" %s\n", lineNumberWidth, "", v.Justification)
+	if v.Justification != nil {
+		result += fmt.Sprintf(escBlue+"%*s = "+escReset+escBold+"justification:"+escReset+" %s\n", lineNumberWidth, "", v.Justification.Message)
 	}
 	return result
 }

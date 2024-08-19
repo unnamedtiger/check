@@ -15,32 +15,20 @@ type Analysis struct {
 	violations []Violation
 }
 
+func (a *Analysis) Report(n *sitter.Node, msg string) {
+	a.ReportCode(n, "", msg)
+}
+
+func (a *Analysis) ReportCode(n *sitter.Node, errorCode string, msg string) {
+	v := newViolation(a.pluginName, a.filePath, n, a.Content, errorCode, msg)
+	a.violations = append(a.violations, v)
+}
+
+func (a *Analysis) ReportCodef(n *sitter.Node, errorCode string, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	a.ReportCode(n, errorCode, msg)
+}
+
 func (a *Analysis) Reportf(n *sitter.Node, format string, args ...any) {
-	startByte := n.StartByte() - n.StartPoint().Column
-	endByte := n.EndByte()
-	for len(a.Content) < int(endByte) && a.Content[endByte] != '\n' {
-		endByte++
-	}
-	code := a.Content[startByte:endByte]
-
-	just := findJustification(n, a.Content, a.pluginName)
-
-	vio := Violation{
-		PluginName: a.pluginName,
-
-		FilePath: a.filePath,
-
-		StartLine:   n.StartPoint().Row,
-		StartColumn: n.StartPoint().Column,
-		EndLine:     n.EndPoint().Row,
-		EndColumn:   n.EndPoint().Column,
-
-		ErrorCode: "",
-		Message:   fmt.Sprintf(format, args...),
-
-		Justification: just,
-
-		relevantContent: string(code),
-	}
-	a.violations = append(a.violations, vio)
+	a.ReportCodef(n, "", format, args...)
 }
