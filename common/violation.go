@@ -8,6 +8,8 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
+const relevantContentBorder = uint32(1)
+
 type Violation struct {
 	PluginName string
 	FilePath   string
@@ -23,8 +25,8 @@ type Violation struct {
 
 	Justification *Justification
 
-	// starts at StartLine:0 and ends at end of EndLine
-	relevantContent string
+	RelevantContentStartLine uint32
+	RelContent               []string
 }
 
 func newViolation(pluginName string, filePath string, n *sitter.Node, content []byte, errorCode string, message string) Violation {
@@ -34,26 +36,91 @@ func newViolation(pluginName string, filePath string, n *sitter.Node, content []
 	}
 	just := findJustification(n, content, tag)
 
-	startByte := n.StartByte() - n.StartPoint().Column
-	endByte := n.EndByte()
-	for len(content) < int(endByte) && content[endByte] != '\n' {
-		endByte++
+	startLine := n.StartPoint().Row
+	if just != nil && startLine > just.StartLine {
+		startLine = just.StartLine
 	}
-	code := content[startByte:endByte]
+	if startLine >= relevantContentBorder {
+		startLine -= relevantContentBorder
+	} else {
+		startLine = 0
+	}
+	endLine := n.EndPoint().Row
+	endLine += relevantContentBorder
+	relevantContent := collectContent(n, content, startLine, endLine)
 
 	v := Violation{
-		PluginName:      pluginName,
-		FilePath:        filePath,
-		StartLine:       n.StartPoint().Row,
-		StartColumn:     n.StartPoint().Column,
-		EndLine:         n.EndPoint().Row,
-		EndColumn:       n.EndPoint().Column,
-		ErrorCode:       errorCode,
-		Message:         message,
-		Justification:   just,
-		relevantContent: string(code),
+		PluginName:               pluginName,
+		FilePath:                 filePath,
+		StartLine:                n.StartPoint().Row,
+		StartColumn:              n.StartPoint().Column,
+		EndLine:                  n.EndPoint().Row,
+		EndColumn:                n.EndPoint().Column,
+		ErrorCode:                errorCode,
+		Message:                  message,
+		Justification:            just,
+		RelevantContentStartLine: startLine,
+		RelContent:               relevantContent,
 	}
 	return v
+}
+
+func collectContent(n *sitter.Node, content []byte, startLine uint32, endLine uint32) []string {
+	startByte := n.StartByte()
+	endByte := n.EndByte()
+
+	n2 := n
+	for n2 != nil {
+		row := n2.StartPoint().Row
+		col := n2.StartPoint().Column
+		if row == startLine && col == 0 {
+			startByte = n2.StartByte()
+			break
+		}
+		if row < startLine {
+			startByte = n2.StartByte()
+			for row < startLine {
+				if content[startByte] == '\n' {
+					row += 1
+				}
+				startByte += 1
+			}
+			break
+		}
+		if n2.PrevSibling() != nil {
+			n2 = n2.PrevSibling()
+		} else {
+			n2 = n2.Parent()
+		}
+	}
+
+	n2 = n
+	for n2 != nil {
+		endByte = n2.EndByte()
+		row := n2.EndPoint().Row
+		if row > endLine {
+			endByte--
+			for row > endLine {
+				if content[endByte] == '\n' {
+					row -= 1
+				}
+				endByte -= 1
+			}
+			if endByte+1 < uint32(len(content)) {
+				endByte += 2
+			}
+			break
+		}
+		if n2.NextSibling() != nil {
+			n2 = n2.NextSibling()
+		} else {
+			n2 = n2.Parent()
+		}
+	}
+
+	full := string(content[startByte:endByte])
+	r := strings.SplitAfter(full, "\n")
+	return r[0 : len(r)-1]
 }
 
 // NOTE: this follows https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#diagnostic
@@ -118,9 +185,8 @@ func (v Violation) StringPretty(color bool) string {
 	}
 	result += fmt.Sprintf(escBlue+"%*s |"+escReset+"\n", lineNumberWidth, "")
 
-	lines := strings.Split(v.relevantContent, "\n")
-	lineNumber := v.StartLine + 1
-	for _, line := range lines {
+	lineNumber := v.RelevantContentStartLine + 1
+	for _, line := range v.RelContent {
 		if v.StartLine+1 <= lineNumber && lineNumber <= v.EndLine+1 && len(line) > 0 {
 			startChar := uint32(0)
 			endChar := uint32(len(line) - 1)
@@ -141,7 +207,6 @@ func (v Violation) StringPretty(color bool) string {
 			l += line[startChar:endChar]
 			l += escReset
 			l += line[endChar:]
-			l += "\n"
 			result += l
 
 			underline := strings.Repeat("~", int(endChar-startChar))
@@ -165,7 +230,7 @@ func (v Violation) StringPretty(color bool) string {
 			l += underline + escReset + "\n"
 			result += l
 		} else {
-			result += fmt.Sprintf(escBlue+"%*d | "+escReset+"%s\n", lineNumberWidth, lineNumber, line)
+			result += fmt.Sprintf(escBlue+"%*d | "+escReset+"%s", lineNumberWidth, lineNumber, line)
 		}
 		lineNumber++
 	}

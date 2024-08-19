@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -21,9 +22,10 @@ func TestViolationFormatters(t *testing.T) {
 			ErrorCode: "E001",
 			Message:   "contains unwanted import: io/ioutil",
 
-			relevantContent: "\t\"io/ioutil\"",
+			RelevantContentStartLine: 3,
+			RelContent:               []string{"\t\"fmt\"\n", "\t\"io/ioutil\"\n", ")\n"},
 		}
-		exp := "violation(unwanted-imports/E001): contains unwanted import: io/ioutil\n  --> test/test.go:5:2\n   |\n 5 | \t\"io/ioutil\"\n   | \t^~~~~~~~~~~\n"
+		exp := "violation(unwanted-imports/E001): contains unwanted import: io/ioutil\n  --> test/test.go:5:2\n   |\n 4 | \t\"fmt\"\n 5 | \t\"io/ioutil\"\n   | \t^~~~~~~~~~~\n 6 | )\n"
 		if exp != v.String() {
 			fmt.Printf("exp: %v\n", exp)
 			fmt.Printf("v.String(): %v\n", v.String())
@@ -69,9 +71,10 @@ func TestViolationFormatters(t *testing.T) {
 
 			Justification: &Justification{3, 7, 3, 67, "unwanted-imports/E001", "it's okay this time, I swear"},
 
-			relevantContent: "    \"io/ioutil\"",
+			RelevantContentStartLine: 3,
+			RelContent:               []string{"    // JUSTIFY(unwanted-imports/E001): it's okay this time, I swear\n", "    \"io/ioutil\"\n", ")\n"},
 		}
-		exp := "justified(unwanted-imports/E001): contains unwanted import: io/ioutil\n  --> test/test.go:5:5\n   |\n 5 |     \"io/ioutil\"\n   |     ^~~~~~~~~~~\n   = justification: it's okay this time, I swear\n"
+		exp := "justified(unwanted-imports/E001): contains unwanted import: io/ioutil\n  --> test/test.go:5:5\n   |\n 4 |     // JUSTIFY(unwanted-imports/E001): it's okay this time, I swear\n 5 |     \"io/ioutil\"\n   |     ^~~~~~~~~~~\n 6 | )\n   = justification: it's okay this time, I swear\n"
 		if exp != v.String() {
 			fmt.Printf("exp: %v\n", exp)
 			fmt.Printf("v.String(): %v\n", v.String())
@@ -102,4 +105,50 @@ func TestViolationFormatters(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func checkCollectContent(t *testing.T, pre string, lines []string, post string, start uint32, end uint32) {
+	code := pre + strings.Join(lines, "") + post
+	content := []byte(code)
+	root, err := parseFileContent(content, "go")
+	if err != nil {
+		t.Fail()
+	}
+	nodes := FindNamedNodes(root, "var_declaration")
+	if len(nodes) != 1 {
+		t.Fail()
+	}
+	result := collectContent(nodes[0], content, start, end)
+	for i := 0; i < min(len(lines), len(result)); i++ {
+		if lines[i] != result[i] {
+			fmt.Printf("lines[%d]: %#v\n", i, lines[i])
+			fmt.Printf("result[%d]: %#v\n", i, result[i])
+			t.Fail()
+		}
+	}
+	if len(lines) != len(result) {
+		for i := min(len(lines), len(result)); i < len(lines); i++ {
+			fmt.Printf("lines[%d]: %#v\n", i, lines[i])
+		}
+		for i := min(len(lines), len(result)); i < len(result); i++ {
+			fmt.Printf("result[%d]: %#v\n", i, result[i])
+		}
+		fmt.Printf("len(lines): %#v\n", len(lines))
+		fmt.Printf("len(result): %#v\n", len(result))
+		t.Fail()
+	}
+	if t.Failed() {
+		t.FailNow()
+	}
+}
+
+func TestCollectContent(t *testing.T) {
+	checkCollectContent(t, "", []string{"var foo bool\n"}, "", 0, 0)
+	checkCollectContent(t, "", []string{"var foo bool\n", "// 2\n"}, "", 0, 1)
+	checkCollectContent(t, "", []string{"// 1\n", "var foo bool\n", "// 2\n"}, "", 0, 2)
+	checkCollectContent(t, "/* 1 -\n", []string{"- 1 */\n", "var foo bool\n", "/* 2 -\n"}, "- 2 */ /* 3 -\n- 3 */\n", 1, 3)
+	checkCollectContent(t, "/* 1 -\n", []string{"- 1 */\n", "var foo bool\n", ")\n"}, "", 1, 3)
+	checkCollectContent(t, "", []string{"func main() {\n", "var foo bool\n", "}\n"}, "", 0, 2)
+	checkCollectContent(t, "func main() {\n", []string{"// 1\n", "var foo bool\n", "}\n"}, "", 1, 3)
+	checkCollectContent(t, "", []string{"func main() {\n", "var foo bool\n", "// 2\n"}, "}\n", 0, 2)
 }
