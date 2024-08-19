@@ -14,8 +14,12 @@ import (
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/c"
+	"github.com/smacker/go-tree-sitter/cpp"
 	"github.com/smacker/go-tree-sitter/golang"
 )
+
+var languages map[string]*sitter.Language
 
 func Main(plugins ...*Plugin) {
 	// handling command line flags and parameters
@@ -137,13 +141,40 @@ func RunChecksForDirectories(plugins []*Plugin, directories []string) ([]Violati
 	return violations, nil
 }
 
+func SetLanguage(ext string, lang *sitter.Language) {
+	languages[ext] = lang
+}
+
+func getLanguage(ext string) *sitter.Language {
+	lang, found := languages[ext]
+	if found {
+		return lang
+	}
+
+	// default languages
+	switch ext {
+	case "c":
+		return c.GetLanguage()
+	case "cpp":
+		return cpp.GetLanguage()
+	case "go":
+		return golang.GetLanguage()
+	case "h":
+		return c.GetLanguage()
+	case "hpp":
+		return cpp.GetLanguage()
+	}
+	return nil
+}
+
 func parseFileContent(content []byte, ext string) (*sitter.Node, error) {
 	parser := sitter.NewParser()
-	if ext == "go" {
-		parser.SetLanguage(golang.GetLanguage())
-	} else {
+
+	lang := getLanguage(ext)
+	if lang == nil {
 		return nil, errors.New("unknown extension")
 	}
+
 	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil {
 		return nil, err
